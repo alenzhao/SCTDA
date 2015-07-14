@@ -570,7 +570,7 @@ class UnrootedGraph(object):
         pylab.xlim(0, max(centr+centr2))
         pylab.show()
 
-    def JSD_matrix(self, lista):
+    def JSD_matrix(self, lista, verbose=False):
         """
         Computes the Jensen-Shannon distance matrix of the list of genes lista
         """
@@ -579,7 +579,8 @@ class UnrootedGraph(object):
         for genis in lista:
             pol[genis] = self.get_gene(genis)[0]
         for n, m1 in enumerate(lista):
-            print n
+            if verbose:
+                print n
             mat.append([])
             for m2 in lista:
                 ql = 0.0
@@ -599,7 +600,7 @@ class UnrootedGraph(object):
                     ql += 0.5*pol[m1][node]*log2m1+0.5*pol[m2][node]*log2m2 - \
                           0.5*(pol[m1][node]+pol[m2][node])*log2m1m2
                 mat[-1].append(numpy.sqrt(ql))
-        return mat
+        return numpy.array(mat)
 
     def cor_matrix(self, lista, c=1):
         """
@@ -608,7 +609,7 @@ class UnrootedGraph(object):
         geys = numpy.array([self.dicgenes[mju] for mju in lista])
         return sklearn.metrics.pairwise.pairwise_distances(geys, metric='correlation', n_jobs=c)
 
-    def adjacency_matrix(self, lista, ind=1):
+    def adjacency_matrix(self, lista, ind=1, verbose=False):
         """
         Computes the Adjacency divergence matrix of the list of genes lista
         """
@@ -618,7 +619,8 @@ class UnrootedGraph(object):
         for genis in lista:
             pol[genis] = self.get_gene(genis)[0]
         for n, m1 in enumerate(lista):
-            print n
+            if verbose:
+                print n
             ex1 = []
             for uu in self.pl:
                 ex1.append(pol[m1][uu])
@@ -631,10 +633,10 @@ class UnrootedGraph(object):
                 ex2 = numpy.array(ex2)
                 mat[-1].append(cor*numpy.dot(numpy.transpose(ex1),
                                              numpy.dot(numpy.linalg.matrix_power(self.adj, ind), ex2)))
-        return mat
+        return numpy.array(mat)
 
     def draw(self, color, connected=True, labels=False, ccmap='jet', weight=8.0, save='', ignore_log=False,
-             table=False):
+             table=False, axis=[]):
         """
         Displays topological representation of the data colored according to the expression of a gene, genes or
         list of genes.
@@ -739,6 +741,8 @@ class UnrootedGraph(object):
                                         rowColours=['r', 'g', 'b'], colWidths=[0.08] * 7)
                 the_table.scale(1.787, 1)
                 pylab.subplots_adjust(bottom=0.2)
+        if len(axis) == 4:
+            pylab.axis(axis)
         if save == '':
             pylab.show()
         else:
@@ -863,7 +867,6 @@ class RootedGraph(UnrootedGraph):
         self.rootlane = rootlane
         self.root, self.leaf = self.find_root(self.get_dendrite())
         self.g3, self.dicdend = self.dendritic_graph()
-        self.g3prun = self.g3
         self.edgesize = []
         self.dicedgesize = {}
         self.edgesizeprun = []
@@ -885,10 +888,8 @@ class RootedGraph(UnrootedGraph):
             self.dicmelisa[ee] = set(lisa)
         try:
             self.posg3 = networkx.graphviz_layout(self.g3, 'sfdp')
-            self.posg3prun = networkx.graphviz_layout(self.g3prun, 'sfdp')
         except:
             self.posg3 = networkx.spring_layout(self.g3)
-            self.posg3prun = networkx.spring_layout(self.g3prun)
         self.dicdis = self.get_distroot(self.root)
 
     def select_diff_path(self):
@@ -1024,6 +1025,9 @@ class RootedGraph(UnrootedGraph):
                        max(1.0-(colorr[node]/rmax+colorg[node]/gmax), 0.0)) for node in pg.nodes()]
             networkx.draw_networkx_nodes(pg, pos, node_color=values,
                                          node_size=numpy.array(nodesize)*weight*50.0/float(max(nodesize)))
+        frame1 = pylab.gca()
+        frame1.axes.get_xaxis().set_ticks([])
+        frame1.axes.get_yaxis().set_ticks([])
         if labels:
             networkx.draw_networkx_labels(pg, pos, font_size=5, font_family='sans-serif')
         if save == '':
@@ -1095,7 +1099,7 @@ class RootedGraph(UnrootedGraph):
         else:
             return UnrootedGraph.get_gene(self, genin, permut, ignore_log, con)
 
-    def draw_expr_timeline(self, genin, ignore_log=False, path=False, noshow=False):
+    def draw_expr_timeline(self, genin, ignore_log=False, path=False, save='', axis=[]):
         """
         Plots expression of gene or genes across distance to root
         """
@@ -1148,13 +1152,19 @@ class RootedGraph(UnrootedGraph):
             y2.append(polter[m][2])
         xnew = numpy.linspace(min(x), max(x), 300)
         ynew = scipy.interpolate.spline(x, y, xnew)
-        if not noshow:
-            pylab.figure()
-            pylab.fill_between(xnew, 0, ynew, alpha=0.5)
+        fig = pylab.figure(figsize=(12,3))
+        pylab.fill_between(xnew, 0, ynew, alpha=0.5)
+        pylab.ylim(0.0, max(ynew)*1.2)
+        pylab.xlabel(self.rootlane)
+        pylab.ylabel('<log2 (1+x)>')
+        if len(axis) == 2:
+            pylab.xlim(axis)
+        else:
             pylab.xlim(min(xnew), max(xnew))
-            pylab.ylim(0.0, max(ynew)*1.2)
-            pylab.xlabel(self.rootlane)
-            pylab.ylabel('<log2 (1+x)>')
+        if save == '':
+            pylab.show()
+        else:
+            fig.savefig(save)
         return polter
 
     def plot_rootlane_correlation(self, doplot=True):
@@ -1236,7 +1246,8 @@ class RootedGraph(UnrootedGraph):
         for n, line in enumerate(f):
             if n > 0:
                 sp = line[:-1].split('\t')
-                ax.scatter(float(sp[8]), float(sp[9]), float(sp[1]), c='k', alpha=0.2, s=10)
+                if float(sp[7]) <= 0.05:
+                    ax.scatter(float(sp[8]), float(sp[9]), float(sp[1]), c='k', alpha=0.2, s=10)
         ax.set_xlabel('Centroid')
         ax.set_ylabel('Dispersion')
         ax.set_zlabel('Cells')
