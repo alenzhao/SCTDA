@@ -38,7 +38,8 @@ import sklearn.metrics.pairwise
 import pickle
 import pylab
 from mpl_toolkits.mplot3d import Axes3D
-
+import warnings
+warnings.filterwarnings("ignore")
 
 """
 GLOBAL METHODS
@@ -250,7 +251,6 @@ class Preprocess(object):
         pylab.yscale('log')
         pylab.xlabel('spike-in reads / average spike-in reads library')
         pylab.ylabel('spike-in reads / uniquely mapped reads')
-        pylab.figure()
         q = []
         for f in self.fil:
             fol = open(f, 'r')
@@ -651,8 +651,10 @@ class UnrootedGraph(object):
         networkx.draw_networkx_edges(pg, pos, width=1, alpha=0.4)
         sizes = numpy.array([len(self.dic[node]) for node in pg.nodes()])*weight
         values = []
-        if type(color) == str or (type(color) == list and len(color) == 1):
-            coloru, tol = self.get_gene(color, ignore_log=ignore_log)
+        if type(color) == str:
+            color = [color]
+        if type(color) == list and len(color) == 1:
+            coloru, tol = self.get_gene(color[0], ignore_log=ignore_log)
             values = [coloru[node] for node in pg.nodes()]
             networkx.draw_networkx_nodes(pg, pos, node_color=values, node_size=sizes, cmap=pylab.get_cmap(ccmap))
         elif type(color) == list and len(color) == 2:
@@ -1309,4 +1311,5 @@ class RootedGraph(UnrootedGraph):
             dicmat3.append(m1)
             for m2 in lista2:
                 mat3[-1].append(mat2[lista.index(m1)][lista.index(m2)])
-        return find_clusters(hierarchical_clustering(mat3, labels=dicmat3, method='centroid'))
+        return [map(lambda xx: lista2[xx], m)
+                for m in find_clusters(hierarchical_clustering(mat3, labels=dicmat3, method='centroid')).values()]
