@@ -48,8 +48,8 @@ GLOBAL METHODS
 
 def ParseAyasdiGraph(name, source, lab, user, password):
     """
-    Parses Ayasdi graph given by the source ID and lab ID, and stores as name.gexf, name.json and name.groups.json.
-    user and password specify Ayasdi login credentials.
+    Parses Ayasdi graph given by 'source' ID and 'lab' ID, and generates files name.gexf, name.json and
+    name.groups.json that are used by SCTDA classes. Arguments 'user' and 'password' specify Ayasdi login credentials.
     """
     headers = {"Content-type": "application/json"}
     session = requests.Session()
@@ -93,7 +93,9 @@ def ParseAyasdiGraph(name, source, lab, user, password):
 
 def benjamini_hochberg(pvalues):
     """
-    Benjamini-Hochberg adjusted p-values for multiple testing. Consistent with R
+    Benjamini-Hochberg adjusted p-values for multiple testing. 'pvalues' contains a list of p-values. Adapted from
+    http://stackoverflow.com/questions/7450957/how-to-implement-rs-p-adjust-in-python. Not subjected
+    to copyright.
     """
     pvalues = numpy.array(pvalues)
     n = float(pvalues.shape[0])
@@ -128,7 +130,10 @@ def is_number(s):
 
 def hierarchical_clustering(mat, method='median', labels=None):
     """
-    Performs hierarchical clustering based on distance matrix mat and method
+    Performs hierarchical clustering based on distance matrix 'mat' using the method specified by 'method'.
+    Optional argument 'labels' may specify a list of labels. Adapted from
+    http://stackoverflow.com/questions/7664826/how-to-get-flat-clustering-corresponding-to-color-clusters-in-the-dendrogram-cre
+    Not subjected to copyright.
     """
     D = numpy.array(mat)
     fig = pylab.figure(figsize=(8, 8))
@@ -189,17 +194,18 @@ CLASSES
 
 class Preprocess(object):
     """
-    Class with methods for for preparing and filtering data based on RNA spike in's. It takes as input one or more
-    files with read counts produced by HTSeq. These can be all from a same time point or from multiple time points.
-    It permits to read, filter and organize the data to put it in the appropriate form for SCTDA.
+    Class for preparing and filtering data based on RNA spike in read counts. It takes as input one or more
+    files with read counts produced by HTSeq-count. These can be all from a same time point or from multiple time
+    points. It permits to read, filter and organize the data to put it in the appropriate form for SCTDA.
     """
-    def __init__(self, files, timepoints, libs, cels, spike='ERCC'):
+    def __init__(self, files, timepoints, libs, cells, spike='ERCC'):
         """
-        Initializes the class by providing a list of files, timepoints and library Id's, as well as the number of cells
-        per file and the common identifier for the RNA spike-in's.
+        Initializes the class by providing a list of files ('files'), timepoints ('timepoints') and library id's
+        ('libs'), as well as the number of cells per file ('cells') and the common identifier for the RNA spike-in
+        reads ('spike').
         """
         self.spike = spike
-        self.len = cels
+        self.len = cells
         self.fil = files
         self.long = timepoints
         self.batch = libs
@@ -240,11 +246,10 @@ class Preprocess(object):
 
     def show_statistics(self):
         """
-        It presents some statistics of the data. These are summarized in two plots. The first contains the ratio of
-        spike-in reads and uniquely mapped reads versus the ratio of spike-in reads and the average number of
-        spike-in reads in the library. The second is a histogram of the read counts expressed as trasncripts per
-        million (TPM), in a log_2(1+TPM) scale. Gene lengths are not considered in the conversion, as corresponds
-        to CEL-seq.
+        Displays some basic statistics of the data. These are summarized in two plots. The first contains the ratio
+        spike-in reads/uniquely mapped reads versus the ratio spike-in reads/average number of spike-in reads in the
+        library. The second is a histogram of the read counts expressed as transcripts per million (TPM), in a
+        log_2(1+TPM) scale. Gene lengths are not considered in the conversion, as corresponds to CEL-seq protocol.
         """
         pylab.figure()
         pylab.plot(self.cal, self.cal2, 'k.', alpha=0.6)
@@ -269,15 +274,15 @@ class Preprocess(object):
     def save(self, name, filterXlow=0.0, filterXhigh=1.0e8, filterYlow=0.0, filterYhigh=1.0e8,
              filterZlow=0.0, filterZhigh=1.0e14):
         """
-        Produces a tab separated file, where the rows are cells that pass a set of filters. The first column of the
-        table contains a unique identifier of the cell, the second column contains the sampling day, the third column
-        contains the library Id and the remaining columns contain to log_2(1+TPM) expression values for each gene.
-        Parameters filterXlow and filterXhigh set respectively lower and upper bounds in the ratio between spike-in
-        reads and the average number of spike-in reads in the library. Parameters filterYlow and filterYhigh set
-        respectively lower and upper bounds in the ratio between spike-in reads and uniquely mapped reads. Parameters
-        filterZhigh and filterZlow set respectively lower and upper bounds on the number of read counts for each gene
-        and sample. The number of cells that have been filtered out in each file is returned as a python dictionary, as
-        well as the total number of cells that passed all filters.
+        Produces a tab separated file, called 'name', where rows are cells that pass a set of filters. The first column
+        of the file contains a unique identifier of the cell, the second column contains the sampling timepoint, the
+        third column contains the library id and the remaining columns contain to log_2(1+TPM) expression values for
+        each gene. Parameters 'filterXlow' and 'filterXhigh' set respectively lower and upper bounds in the ratio
+        between spike-in reads and the average number of spike-in reads in the library. Parameters 'filterYlow' and
+        'filterYhigh' set respectively lower and upper bounds in the ratio between spike-in reads and uniquely mapped
+        reads. Parameters 'filterZhigh' and 'filterZlow' set respectively lower and upper bounds on the number of read
+        counts for each gene and sample. The number of cells that have been filtered out in each file is returned as a
+        python dictionary, as well as the total number of cells that passed all filters.
         """
         g = open(name, 'w')
         elim = []
@@ -329,12 +334,18 @@ class Preprocess(object):
 
 class UnrootedGraph(object):
     """
-    Main class for the topological analysis of non-longitudinal single cell RNA-seq expression data.
+    Main class for topological analysis of non-longitudinal single cell RNA-seq expression data.
     """
     def __init__(self, name, table, shift=None, log2=True, posgl=False):
         """
-        Initializes the class. name is the common name of .gexf and .pickle files. table is the name of the file
-        containing the raw data. It ignores the first shift columns.
+        Initializes the class by providing the the common name ('name') of .gexf and .json files produced by
+        e.g. ParseAyasdiGraph() and the name of the file containing the filtered raw data, as produced by
+        Preprocess.save(). Optional argument 'shift' can be an integer n specifying that the first n columns
+        of the table should be ignored, or a list of columns that should only be considered. If optional argument
+        'log2' is False, it is assumed that the filtered raw data is in units of TPM instead of log_2(1+TPM).
+        When optional argument 'posgl' is False, a files name.posg and name.posgl are generated with the positions
+        of the graph nodes for visualization. When 'posgl' is True, instead of generating new positions, the
+        positions stored in files name.posg and name.posgl are used for visualization of the topological graph.
         """
         self.name = name
         self.g = networkx.read_gexf(name + '.gexf')
@@ -393,11 +404,14 @@ class UnrootedGraph(object):
             self.samples += self.dic[i]
         self.samples = numpy.array(list(set(self.samples)))
 
-    def get_gene(self, genin, permut=False, ignore_log=False, con=True):
+    def get_gene(self, genin, ignore_log=False, con=True):
         """
-        Returns a dictionary that asigns to each node ID the average value of the column genin in the raw table, for
-         the rows contained in that column. If permut = True performs a reshuffling of rows. If log2 = True assumes
-          values in the format log2(1+x) when computing averages.
+        Returns a dictionary that asigns to each node id the average value of the column 'genin' in the raw table.
+        'genin' can be also a list of columns, on which case the average of all columns. The output is normalized
+        such that the sum over all nodes is equal to 1. It also provides as an output the normalization factor, to
+        convert the dictionary to log_2(1+TPM) units (or TPM units). When 'ignore_log' is True it treat entries as
+        being in natural scale, even if self.log2 is True (used internally). When 'con' is False, it uses all
+        nodes, not only the ones in the first connected component of the topological representation (used internally).
         """
         if type(genin) != list:
             genin = [genin]
@@ -418,8 +432,6 @@ class UnrootedGraph(object):
             else:
                 geys = self.dicgenes[mju]
                 kis = range(len(geys))
-                if permut:
-                    random.shuffle(kis)
                 for i in sorted(lista):
                     pol = 0.0
                     if self.log2 and not ignore_log:
@@ -439,7 +451,7 @@ class UnrootedGraph(object):
 
     def connectivity_pvalue(self, genin, n=500):
         """
-        Returns a numpy array whose columns are p_i vectors with randomly shuffled cells
+        Returns statistical significance of connectivity of gene specified by 'genin', using 'n' permutations.
         """
         if genin is not None:
             jk = len(self.pl)
@@ -465,11 +477,11 @@ class UnrootedGraph(object):
         else:
             return 0.0
 
-    def connectivity(self, genis, permut=False, ind=1):
+    def connectivity(self, genis, ind=1):
         """
-        Computes order ind connectivity of column genis
+        Returns the value of order 'ind' connectivity for the gene or list of genes specified by 'genis'.
         """
-        dicgen = self.get_gene(genis, permut)[0]
+        dicgen = self.get_gene(genis)[0]
         ex = []
         for uu in self.pl:
             ex.append(dicgen[uu])
@@ -480,7 +492,9 @@ class UnrootedGraph(object):
 
     def delta(self, genis, group=None):
         """
-        Computes coefficient of variation of column genis in the graph
+        Returns the mean, minimum and maximum expression values of the gene or list of genes specified
+        by argument 'genin'. Optional argument 'group' allows to restrict this method to one of the
+        node groups specified in the file name.groups.json.
         """
         per = []
         dicgen, tot = self.get_gene(genis)
@@ -501,7 +515,9 @@ class UnrootedGraph(object):
 
     def expr(self, genis, group=None):
         """
-        Computes fraction of expressed nodes for column genis
+        Returns the number of rows with non-zero expression of gene or list of genes specified by argument 'genin'.
+        Optional argument 'group' allows to restrict this method to one of the node groups specified in the file
+        name.groups.json.
         """
         per = []
         dicgen = self.get_gene(genis)[0]
@@ -538,7 +554,7 @@ class UnrootedGraph(object):
                 m1, m2, m3 = self.delta(gi)
                 if po > filtercells and m3 > filterexp:
                     cul = gi + '\t' + str(po) + '\t' + str(m1) + '\t' + str(m2) + '\t' + str(m3) + '\t' + \
-                          str(self.connectivity(gi)) + '\t' + str(pol[mj]) + '\t' + str(por[mj]) + '\t'
+                        str(self.connectivity(gi)) + '\t' + str(pol[mj]) + '\t' + str(por[mj]) + '\t'
                     for m in sorted(annotation.keys()):
                         if gi in annotation[m]:
                             cul += 'Y' + '\t'
@@ -804,12 +820,12 @@ class RootedGraph(UnrootedGraph):
             distroot[str(i)] = networkx.shortest_path_length(self.gl, str(root), i)
         return distroot
 
-    def get_dendrite(self, permut=False):
+    def get_dendrite(self):
         """
         Dendritic function
         """
         dendrite = {}
-        daycolor = self.get_gene(self.rootlane, permut=permut, ignore_log=True)[0]
+        daycolor = self.get_gene(self.rootlane, ignore_log=True)[0]
         for i in self.pl:
             distroot = self.get_distroot(i)
             x = []
@@ -1088,7 +1104,7 @@ class RootedGraph(UnrootedGraph):
                 genecolor[ll] = genecolor[ll]/tol
         return genecolor, tol
 
-    def get_gene(self, genin, permut=False, ignore_log=False, con=True):
+    def get_gene(self, genin, ignore_log=False, con=True):
         """
         Returns a dictionary that asigns to each node ID the average value of the column genin in the raw table, for
          the rows contained in that column. If permut = True performs a reshuffling of rows. If log2 = True assumes
@@ -1099,7 +1115,7 @@ class RootedGraph(UnrootedGraph):
         elif genin is not None and 'timepoint_' in genin:
             return self.count_gene(self.rootlane, float(genin.split('_')[1]))
         else:
-            return UnrootedGraph.get_gene(self, genin, permut, ignore_log, con)
+            return UnrootedGraph.get_gene(self, genin, ignore_log, con)
 
     def draw_expr_timeline(self, genin, ignore_log=False, path=False, save='', axis=[]):
         """
