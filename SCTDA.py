@@ -1,23 +1,13 @@
 """
 SCTDA. Library for topological data analysis of high-throughput single-cell RNA-seq expression data.
 
-Copyright 2015, Pablo G. Camara, Columbia University
+Copyright 2015, Pablo G. Camara, Columbia University. All rights reserved.
 
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
-Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
-warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with this program.
-If not, see <http://www.gnu.org/licenses/>.
 """
 
 __author__ = "Pablo G. Camara"
 __copyright__ = "Copyright 2015, Rabadan's Lab, Columbia University"
 __date__ = "07/15/2015"
-__license__ = "GPLv3"
 __maintainer__ = "Pablo G. Camara"
 __email__ = "pg2495@colombia.edu"
 __status__ = "Development"
@@ -29,7 +19,6 @@ import numexpr
 import numpy
 import numpy.linalg
 import numpy.random
-import random
 import requests
 import scipy.stats
 import scipy.cluster.hierarchy as sch
@@ -339,7 +328,7 @@ class UnrootedGraph(object):
     def __init__(self, name, table, shift=None, log2=True, posgl=False):
         """
         Initializes the class by providing the the common name ('name') of .gexf and .json files produced by
-        e.g. ParseAyasdiGraph() and the name of the file containing the filtered raw data, as produced by
+        e.g. ParseAyasdiGraph() and the name of the file containing the filtered raw data ('table'), as produced by
         Preprocess.save(). Optional argument 'shift' can be an integer n specifying that the first n columns
         of the table should be ignored, or a list of columns that should only be considered. If optional argument
         'log2' is False, it is assumed that the filtered raw data is in units of TPM instead of log_2(1+TPM).
@@ -535,7 +524,12 @@ class UnrootedGraph(object):
 
     def save(self, n=500, filtercells=0, filterexp=0.0, annotation={}):
         """
-        Computes and stores all statistics in file name
+        Computes UnrootedGraph.expr(), UnrootedGraph.delta(), UnrootedGraph.connectivity(),
+        UnrootedGraph.connectivity_pvalue() and Benjamini-Holchberg adjusted q-values for all
+        genes that are expressed in more than 'filtercells' cells and whose maximum expression
+        value is above 'filterexp'. The optional argument 'annotation' allos to include a dictionary
+        with lists of genes to be annotated in the table. The output is stored in a tab separated
+        file called name.genes.txt.
         """
         pol = []
         with open(self.name + '.genes.txt', 'w') as ggg:
@@ -588,7 +582,8 @@ class UnrootedGraph(object):
 
     def JSD_matrix(self, lista, verbose=False):
         """
-        Computes the Jensen-Shannon distance matrix of the list of genes lista
+        Returns the Jensen-Shannon distance matrix of the list of genes specified by 'lista'. If 'verbose' is set to
+        True, it prints progress on the screen.
         """
         pol = {}
         mat = []
@@ -620,14 +615,16 @@ class UnrootedGraph(object):
 
     def cor_matrix(self, lista, c=1):
         """
-        Computes correlation distance matrix of the list of genes lista
+        Returns correlation distance matrix of the list of genes specified by 'lista'. It uses 'c' cores for the
+        computation.
         """
         geys = numpy.array([self.dicgenes[mju] for mju in lista])
         return sklearn.metrics.pairwise.pairwise_distances(geys, metric='correlation', n_jobs=c)
 
     def adjacency_matrix(self, lista, ind=1, verbose=False):
         """
-        Computes the Adjacency divergence matrix of the list of genes lista
+        Returns the adjacency matrix of order 'ind' of the list of genes specified by 'lista'. If 'verbose' is set to
+        True, it prints progress on the screen.
         """
         cor = float(len(self.pl))/float(len(self.pl)-1)
         pol = {}
@@ -655,7 +652,16 @@ class UnrootedGraph(object):
              table=False, axis=[]):
         """
         Displays topological representation of the data colored according to the expression of a gene, genes or
-        list of genes.
+        list of genes, specified by argument 'color'. This can be a gene or a list of one, two or three genes or lists
+        of genes, to be respectively mapped to red, green and blue channels. When only one gene or list of genes is
+        specified, it uses color map specified by 'ccmap'. If optional argument 'connected' is set to True, only the
+        largest connected component of the graph is displayed. If argument 'labels' is True, node id's are also
+        displayed. Argument 'weight' allows to set a scaling factor for node sizes. When optional argument 'save'
+        specifies a file name, the figure will be save in the file, in the format specified by its extension, and
+        no plot will be displayed on the screen. When 'ignore_log' is True, it treat expression values as being in
+        natural scale, even if self.log2 is True (used internally). When argument 'table' is True, it displays in
+        addition a table with some statistics of the gene or genes. Optional argument 'axis' allows to specify axis
+        limits in the form [xmin, xmax, ymin, ymax].
         """
         if connected:
             pg = self.gl
@@ -813,7 +819,7 @@ class RootedGraph(UnrootedGraph):
     """
     def get_distroot(self, root):
         """
-        Dictionary of node distances to root
+        Returns a dictionary of graph distances to node specified by argument 'root'
         """
         distroot = {}
         for i in sorted(self.pl):
@@ -822,7 +828,8 @@ class RootedGraph(UnrootedGraph):
 
     def get_dendrite(self):
         """
-        Dendritic function
+        Returns function that for each graph node takes the value of the correlation between the graph distance function
+        to the node and the sampling time fuunction specified by self.rootlane (used internally).
         """
         dendrite = {}
         daycolor = self.get_gene(self.rootlane, ignore_log=True)[0]
@@ -839,7 +846,8 @@ class RootedGraph(UnrootedGraph):
 
     def find_root(self, dendritem):
         """
-        Finds root and leaf
+        Given the output of RootedGraph.get_dendrite() as 'dendritem', it returns the less and the most differentiated
+        nodes (used internally).
         """
         q = 1000.0
         q2 = -1000.0
@@ -856,7 +864,7 @@ class RootedGraph(UnrootedGraph):
 
     def dendritic_graph(self):
         """
-        Builds dendritic graph
+        Builds skeleton of the topological representation (used internally)
         """
         diam = networkx.diameter(self.gl)
         g3 = networkx.Graph()
@@ -879,7 +887,15 @@ class RootedGraph(UnrootedGraph):
 
     def __init__(self, name, table, rootlane='timepoint', shift=None, log2=True, posgl=False):
         """
-        Initializes the class
+        Initializes the class by providing the the common name ('name') of .gexf and .json files produced by
+        e.g. ParseAyasdiGraph(), the name of the file containing the filtered raw data ('table'), as produced by
+        Preprocess.save(), and the name of the column that contains sampling time points. Optional argument
+        'shift' can be an integer n specifying that the first n columns of the table should be ignored, or a
+        list of columns that should only be considered. If optional argument 'log2' is False, it is assumed that
+        the filtered raw data is in units of TPM instead of log_2(1+TPM). When optional argument 'posgl' is False,
+        a files name.posg and name.posgl are generated with the positions of the graph nodes for visualization.
+        When 'posgl' is True, instead of generating new positions, the positions stored in files name.posg and
+        name.posgl are used for visualization of the topological graph.
         """
         UnrootedGraph.__init__(self, name, table, shift, log2, posgl)
         self.rootlane = rootlane
@@ -912,7 +928,8 @@ class RootedGraph(UnrootedGraph):
 
     def select_diff_path(self):
         """
-        Returns linear subgraph og the differentiation network
+        Returns a linear subgraph of the skeleton of the topological representation that maximizes the number of edges
+        (used internally).
         """
         lista = []
         last = '0_0'
@@ -937,7 +954,15 @@ class RootedGraph(UnrootedGraph):
 
     def draw_skeleton(self, color, labels=False, ccmap='jet', weight=8.0, save='', ignore_log=False, markpath=False):
         """
-        Plots colored network
+        Displays skeleton of topological representation of the data colored according to the expression of a gene,
+        genes or list of genes, specified by argument 'color'. This can be a gene or a list of one, two or three
+        genes or lists of genes, to be respectively mapped to red, green and blue channels. When only one gene or
+        list of genes is specified, it uses color map specified by 'ccmap'. If argument 'labels' is True, node id's
+        are also displayed. Argument 'weight' allows to set a scaling factor for node sizes. When optional argument
+        'save' specifies a file name, the figure will be save in the file, in the format specified by its extension, and
+        no plot will be displayed on the screen. When 'ignore_log' is True, it treat expression values as being in
+        natural scale, even if self.log2 is True (used internally). When argument 'markpath' is True, it highlights the
+        linear path produced by RootedGraph.select_diff_path().
         """
         values = []
         pg = self.g3
@@ -976,7 +1001,6 @@ class RootedGraph(UnrootedGraph):
             networkx.draw_networkx_nodes(pg, pos, node_color=values,
                                          node_size=numpy.array(nodesize)*weight*50.0/float(max(nodesize)),
                                          cmap=pylab.get_cmap(ccmap))
-        # Need to adapt next cases to average genes
         elif type(color) == list and len(color) == 2:
             geysr = self.dicgenes[color[0]]
             geysb = self.dicgenes[color[1]]
@@ -1056,7 +1080,9 @@ class RootedGraph(UnrootedGraph):
 
     def centroid(self, genin, ignore_log=False):
         """
-        Computes centroid and dispersion
+        Returns the centroid and dispersion of a genes or list of genes specified by argument 'genin'.
+        When 'ignore_log' is True, it treat expression values as being in natural scale, even if self.log2 is
+        True (used internally).
         """
         dicge = self.get_gene(genin, ignore_log=ignore_log)[0]
         pel1 = 0.0
@@ -1075,7 +1101,9 @@ class RootedGraph(UnrootedGraph):
 
     def count_gene(self, genin, cond, con=True):
         """
-        Return a dictionary that assigns to each node ID the fraction that takes value cond
+        Returns a dictionary that assigns to each node id the fraction of cells in the node for which column 'genin'
+        is equal to 'cond'. When optional argument 'con' is False, it uses all nodes, not only the ones in the first
+        connected component of the topological representation (used internally).
         """
         genecolor = {}
         lista = []
@@ -1106,9 +1134,15 @@ class RootedGraph(UnrootedGraph):
 
     def get_gene(self, genin, ignore_log=False, con=True):
         """
-        Returns a dictionary that asigns to each node ID the average value of the column genin in the raw table, for
-         the rows contained in that column. If permut = True performs a reshuffling of rows. If log2 = True assumes
-          values in the format log2(1+x) when computing averages.
+        Returns a dictionary that asigns to each node id the average value of the column 'genin' in the raw table.
+        'genin' can be also a list of columns, on which case the average of all columns. The output is normalized
+        such that the sum over all nodes is equal to 1. It also provides as an output the normalization factor, to
+        convert the dictionary to log_2(1+TPM) units (or TPM units). When 'ignore_log' is True it treat entries as
+        being in natural scale, even if self.log2 is True (used internally). When 'con' is False, it uses all
+        nodes, not only the ones in the first connected component of the topological representation (used internally).
+        Argument 'genin' may also be equal to the special keyword '_dist_root', on which case it returns the graph
+        distance funtion to the root node. It can be also equal to 'timepoint_xxx', on which case it returns a
+        dictionary with the fraction of cells belonging to timepoint xxx in each node.
         """
         if genin == '_dist_root':
             return self.get_distroot(self.root), 1.0
@@ -1119,7 +1153,13 @@ class RootedGraph(UnrootedGraph):
 
     def draw_expr_timeline(self, genin, ignore_log=False, path=False, save='', axis=[]):
         """
-        Plots expression of gene or genes across distance to root
+        It displays the expression of a gene or list of genes, specified by argument 'genin', at different time points,
+        as inferred from the distance to root function. When 'ignore_log' is True, it treat expression values as being
+        in natural scale, even if self.log2 is True (used internally). When optional argument 'save' specifies a file
+        name, the figure will be save in the file, in the format specified by its extension, and no plot will be
+        displayed on the screen. Optional argument 'axis' allows to specify axis limits in the form
+        [xmin, xmax, ymin, ymax]. If argument 'path' is True, expression is computed only across the linear path
+        produced by RootedGraph.select_diff_path().
         """
         distroot_inv = {}
         if not path:
@@ -1187,7 +1227,9 @@ class RootedGraph(UnrootedGraph):
 
     def plot_rootlane_correlation(self, doplot=True):
         """
-        Plots correlation between distance to root and rootlane
+        Displays correlation between sampling time points and graph distance to root node. It returns the two
+        parameters of the linear fit, Pearson's r, p-value and standard error. If optional argument 'doplot' is
+        False, the plot is not displayed.
         """
         pel2, tol = self.get_gene(self.rootlane, ignore_log=True)
         pel = numpy.array([pel2[m] for m in self.pl])*tol
@@ -1207,7 +1249,12 @@ class RootedGraph(UnrootedGraph):
 
     def save(self, n=500, filtercells=0, filterexp=0.0, annotation={}):
         """
-        Computes and stores all statistics in file name
+        Computes RootedGraph.expr(), RootedGraph.delta(), RootedGraph.connectivity(),
+        RootedGraph.connectivity_pvalue(), RootedGraph.centroid() and Benjamini-Holchberg adjusted q-values for all
+        genes that are expressed in more than 'filtercells' cells and whose maximum expression
+        value is above 'filterexp'. The optional argument 'annotation' allos to include a dictionary
+        with lists of genes to be annotated in the table. The output is stored in a tab separated
+        file called name.genes.txt.
         """
         pol = []
         with open(self.name + '.genes.txt', 'w') as ggg:
@@ -1272,6 +1319,15 @@ class RootedGraph(UnrootedGraph):
         pylab.show()
 
     def candidate_subpopulations(self, lista, thres=0.05):
+        """
+        Returns a list of potential cell sub-populations based on the list of genes specified by argument 'lista'.
+        For that aim, it computes the adjacency and Jensen-Shannon matrices of the genes in the list and looks for
+        pairs of genes that have both high adjacency and high Jensen-Shannon distance. A threshold in this 2-dimensional
+        space can be specified using the argument 'thres', that takes values between 0 and 1. It produces two plots.
+        The first plot displays the distribution in this 2-dimensional space of all considered pairs of genes, with
+        pairs passing the threshold marked in red. Genes that appear in pairs of genes that pass the threshold are
+        clustered using hierarchical clustering and Jensen-Shannon distance, as shown in the second plot.
+        """
         mat = self.adjacency_matrix(lista)
         mat2 = self.JSD_matrix(lista)
         x = []
