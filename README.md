@@ -14,7 +14,7 @@ It requires the following python modules:
 
 For optimal visualization results it is recommended to have Graphviz tools and PyGraphviz installed, although they are not strictly required.
 
-SCTDA can be loaded using the command:
+SCTDA can be imported using the command:
 
 `import SCTDA`
 
