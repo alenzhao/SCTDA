@@ -190,15 +190,17 @@ class Preprocess(object):
     def __init__(self, files, timepoints, libs, cells, spike='ERCC'):
         """
         Initializes the class by providing a list of files ('files'), timepoints ('timepoints') and library id's
-        ('libs'), as well as the number of cells per file ('cells') and the common identifier for the RNA spike-in
-        reads ('spike').
+        ('libs'), as well as the number of cells per file ('cells'), which can be a list, and the common identifier
+        for the RNA spike-in reads ('spike').
         """
         self.spike = spike
-        self.len = cells
+        if type(cells) != list:
+            self.len = [cells]*len(files)
+        else:
+            self.len = cells
         self.fil = files
         self.long = timepoints
         self.batch = libs
-        carma = []
         self.cal = []
         self.cal2 = []
         self.tal = {}
@@ -206,10 +208,11 @@ class Preprocess(object):
         self.totaltransc = {}
         nofeature = {}
         self.spikes_ratio = {}
-        for f in self.fil:
-            totalspikes[f] = numpy.array([0.0 for _ in range(self.len)])
-            self.totaltransc[f] = numpy.array([0.0 for _ in range(self.len)])
-            self.spikes_ratio[f] = numpy.array([0.0 for _ in range(self.len)])
+        for nn, f in enumerate(self.fil):
+            carma = []
+            totalspikes[f] = numpy.array([0.0 for _ in range(self.len[nn])])
+            self.totaltransc[f] = numpy.array([0.0 for _ in range(self.len[nn])])
+            self.spikes_ratio[f] = numpy.array([0.0 for _ in range(self.len[nn])])
             fol = open(f, 'r')
             qty = 0
             for line in fol:

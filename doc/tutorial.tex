@@ -355,8 +355,8 @@ cells using the method \texttt{SCTDA.Preprocess.save()}:
         \begin{ColorVerbatim}
             \vspace{-0.2\baselineskip}
             \begin{Verbatim}[commandchars=\\\{\}]
-\PY{n}{p}\PY{o}{.}\PY{n}{save}\PY{p}{(}\PY{l+s}{\PYZsq{}}\PY{l+s}{table\PYZus{}tpm.tsv}\PY{l+s}{\PYZsq{}}\PY{p}{,} \PY{n}{filterXlow}\PY{o}{=}\PY{l+m+mf}{0.1}\PY{p}{,} \PY{n}{filterYlow}\PY{o}{=}\PY{l+m+mf}{0.01}\PY{p}{,} \PY{n}{filterYhigh}\PY{o}{=}\PY{l+m+mf}{0.8}\PY{p}{,} 
-       \PY{n}{filterZlow}\PY{o}{=}\PY{l+m+mf}{4.0}\PY{p}{)}
+\PY{n}{p}\PY{o}{.}\PY{n}{save}\PY{p}{(}\PY{l+s}{\PYZsq{}}\PY{l+s}{table\PYZus{}tpm.tsv}\PY{l+s}{\PYZsq{}}\PY{p}{,} \PY{n}{filterXlow}\PY{o}{=}\PY{l+m+mf}{0.0005}\PY{p}{,} \PY{n}{filterYlow}\PY{o}{=}\PY{l+m+mf}{0.01}\PY{p}{,}  
+       \PY{n}{filterYhigh}\PY{o}{=}\PY{l+m+mf}{0.7}\PY{p}{,} \PY{n}{filterZlow}\PY{o}{=}\PY{l+m+mf}{4.0}\PY{p}{)}
 \end{Verbatim}
 
             
@@ -377,8 +377,8 @@ cells using the method \texttt{SCTDA.Preprocess.save()}:
             
                 \makebox[0.1\linewidth]{\smaller\hfill\tt\color{nbframe-out-prompt}Out\hspace{4pt}{[}4{]}:\hspace{4pt}}\\*
                 \vspace{-1.9\baselineskip}\begin{InvisibleVerbatim}
-\begin{alltt}(373,
- \{'D2\_TM009.txt': 2,
+\begin{alltt}(374,
+ \{'D2\_TM009.txt': 1,
   'D2\_TM010.txt': 5,
   'D3\_TM011.txt': 6,
   'D3\_TM012.txt': 4,
@@ -400,7 +400,7 @@ spike-in reads in the library. Parameters \texttt{filterYlow} and \texttt{filter
 respectively lower and upper bounds in the ratio between spike-in reads
 and uniquely mapped reads. Parameters \texttt{filterZlow} and \texttt{filterZhigh} set
 respectively lower and upper bounds on the number of read counts for
-each gene and sample. Out of the 440 cells, 373 pass all the above
+each gene and sample. Out of the 440 cells, 374 pass all the above
 filters. The number of cells that have been filtered out in each file is
 returned as a dictionary.
 
@@ -1713,7 +1713,7 @@ sub-populations,
 
     % End of document
     \begin{thebibliography}{99}
-    \bibitem{ref1} Rizvi, A., Camara, P. G., Kandror, E., Rabadan, R. and Maniatis, T., \emph{Title of paper}. In preparation.
+    \bibitem{ref1} Rizvi, A. H.${}^*$, Camara, P. G.${}^*$, Kandror, E. K., Roberts, T. J., Maniatis, T. and Rabadan, R., \emph{Applied Topology Informs Cellular Fate at a Single-Cell Level}. In preparation.
     \end{thebibliography}
     \end{document}
 
