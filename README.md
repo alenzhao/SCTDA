@@ -22,4 +22,4 @@ A tutorial illustrating the basic SCTDA workflow can be found in directory `doc/
 
 If you use SCTDA in your research, please include in your reference list the following publication:
 
-##### Rizvi, A.\*, Camara, P.G.\*, Kandror, E., Rabadan, R. and Maniatis, T. (2015), "Title of article". _In preparation._
+##### Rizvi, A.H.\*, Camara, P.G.\*, Kandror, E.K., Roberts, T.J., Maniatis, T., and Rabadan, R. (2015), "Applied Topology Informs Cellular Fate at a Single-Cell Level". _In preparation._
