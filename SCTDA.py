@@ -285,7 +285,7 @@ class Preprocess(object):
             genes = []
             valu = []
             valu3 = []
-            for nok in range(40):
+            for nok in range(self.len[n]):
                 if filterXhigh > self.tal[f][nok] > filterXlow and filterYlow < self.spikes_ratio[f][nok] < filterYhigh \
                         and self.totaltransc[f][nok] > 0.0:
                     valu3.append(nok)
@@ -315,7 +315,8 @@ class Preprocess(object):
                     p += l + '\t'
                 g.write(p[:-1] + '\n')
             for tuj, l in enumerate(valu2):
-                p = f[:-4] + '_' + str(valu3[tuj]) + '\t' + f[1] + '\t' + f[-7:-4] + '\t'
+                p = 'D' + str(self.long[n]) + '_' + self.batch[n] + '_' + str(valu3[tuj]) + '\t' + str(self.long[n]) \
+                    + '\t' + self.batch[n] + '\t'
                 for r in l:
                     p += str(r) + '\t'
                 g.write(p[:-1] + '\n')
@@ -345,6 +346,7 @@ class UnrootedGraph(object):
         self.pl = self.gl.nodes()
         self.adj = numpy.array(networkx.to_numpy_matrix(self.gl, nodelist=self.pl))
         self.log2 = log2
+        self.libs = []
         if not posgl:
             try:
                 self.posgl = networkx.graphviz_layout(self.gl, 'sfdp', '-Goverlap=false -GK=0.1')
@@ -373,11 +375,18 @@ class UnrootedGraph(object):
                 if shift is None:
                     if n == 0:
                         poi = sp
+                        if 'lib' in list(sp):
+                            coyt = list(sp).index('lib')
+                        else:
+                            coyt = -1
                     else:
                         poi = []
-                        for mji in sp:
+                        for n2, mji in enumerate(sp):
                             if is_number(mji):
                                 poi.append(mji)
+                            elif n2 == coyt:
+                                self.libs.append(mji)
+                                poi.append(0.0)
                             else:
                                 poi.append(0.0)
                 elif type(shift) == int:
@@ -405,41 +414,44 @@ class UnrootedGraph(object):
         being in natural scale, even if self.log2 is True (used internally). When 'con' is False, it uses all
         nodes, not only the ones in the first connected component of the topological representation (used internally).
         """
-        if type(genin) != list:
-            genin = [genin]
-        genecolor = {}
-        lista = []
-        for i in self.dic.keys():
-            if con:
-                if str(i) in self.pl:
+        if genin is not None and 'lib_' in genin:
+            return self.count_gene('lib', genin.split('_')[1])
+        else:
+            if type(genin) != list:
+                genin = [genin]
+            genecolor = {}
+            lista = []
+            for i in self.dic.keys():
+                if con:
+                    if str(i) in self.pl:
+                        genecolor[str(i)] = 0.0
+                        lista.append(i)
+                else:
                     genecolor[str(i)] = 0.0
                     lista.append(i)
-            else:
-                genecolor[str(i)] = 0.0
-                lista.append(i)
-        for mju in genin:
-            if mju is None:
-                for i in sorted(lista):
-                    genecolor[str(i)] = 0.0
-            else:
-                geys = self.dicgenes[mju]
-                kis = range(len(geys))
-                for i in sorted(lista):
-                    pol = 0.0
-                    if self.log2 and not ignore_log:
-                        for j in self.dic[i]:
-                                pol += (numpy.power(2, float(geys[kis[j]]))-1.0)
-                        pol = numpy.log2(1.0+(pol/float(len(self.dic[i]))))
-                    else:
-                        for j in self.dic[i]:
-                                pol += float(geys[kis[j]])
-                        pol /= float(len(self.dic[i]))
-                    genecolor[str(i)] += pol
-        tol = sum(genecolor.values())
-        if tol > 0.0:
-            for ll in genecolor.keys():
-                genecolor[ll] = genecolor[ll]/tol
-        return genecolor, tol
+            for mju in genin:
+                if mju is None:
+                    for i in sorted(lista):
+                        genecolor[str(i)] = 0.0
+                else:
+                    geys = self.dicgenes[mju]
+                    kis = range(len(geys))
+                    for i in sorted(lista):
+                        pol = 0.0
+                        if self.log2 and not ignore_log:
+                            for j in self.dic[i]:
+                                    pol += (numpy.power(2, float(geys[kis[j]]))-1.0)
+                            pol = numpy.log2(1.0+(pol/float(len(self.dic[i]))))
+                        else:
+                            for j in self.dic[i]:
+                                    pol += float(geys[kis[j]])
+                            pol /= float(len(self.dic[i]))
+                        genecolor[str(i)] += pol
+            tol = sum(genecolor.values())
+            if tol > 0.0:
+                for ll in genecolor.keys():
+                    genecolor[ll] = genecolor[ll]/tol
+            return genecolor, tol
 
     def connectivity_pvalue(self, genin, n=500):
         """
@@ -682,6 +694,7 @@ class UnrootedGraph(object):
             coloru, tol = self.get_gene(color[0], ignore_log=ignore_log)
             values = [coloru[node] for node in pg.nodes()]
             networkx.draw_networkx_nodes(pg, pos, node_color=values, node_size=sizes, cmap=pylab.get_cmap(ccmap))
+            polca = values
         elif type(color) == list and len(color) == 2:
             colorr, tolr = self.get_gene(color[0], ignore_log=ignore_log)
             rmax = float(max(colorr.values()))
@@ -694,6 +707,7 @@ class UnrootedGraph(object):
             values = [(1.0-colorb[node]/bmax, max(1.0-(colorr[node]/rmax+colorb[node]/bmax), 0.0),
                        1.0-colorr[node]/rmax) for node in pg.nodes()]
             networkx.draw_networkx_nodes(pg, pos, node_color=values, node_size=sizes)
+            polca = [(colorr[node], colorb[node]) for node in pg.nodes()]
         elif type(color) == list and len(color) == 3:
             colorr, tolr = self.get_gene(color[0], ignore_log=ignore_log)
             rmax = float(max(colorr.values()))
@@ -711,6 +725,29 @@ class UnrootedGraph(object):
                        max(1.0-(colorr[node]/rmax+colorb[node]/bmax), 0.0),
                        max(1.0-(colorr[node]/rmax+colorg[node]/gmax), 0.0)) for node in pg.nodes()]
             networkx.draw_networkx_nodes(pg, pos, node_color=values, node_size=sizes)
+            polca = [(colorr[node], colorg[node], colorb[node]) for node in pg.nodes()]
+        elif type(color) == list and len(color) == 4:
+            colorr, tolr = self.get_gene(color[0], ignore_log=ignore_log)
+            rmax = float(max(colorr.values()))
+            if rmax == 0.0:
+                rmax = 1.0
+            colorg, tolg = self.get_gene(color[1], ignore_log=ignore_log)
+            gmax = float(max(colorg.values()))
+            if gmax == 0.0:
+                gmax = 1.0
+            colorb, tolb = self.get_gene(color[2], ignore_log=ignore_log)
+            bmax = float(max(colorb.values()))
+            if bmax == 0.0:
+                bmax = 1.0
+            colord, told = self.get_gene(color[3], ignore_log=ignore_log)
+            dmax = float(max(colord.values()))
+            if dmax == 0.0:
+                dmax = 1.0
+            values = [(max(1.0-(colorg[node]/gmax+colorb[node]/bmax), 0.0),
+                       max(1.0-(colorr[node]/rmax+colorb[node]/bmax+0.36*colord[node]/dmax), 0.0),
+                       max(1.0-(colorr[node]/rmax+colorg[node]/gmax+colord[node]/dmax), 0.0)) for node in pg.nodes()]
+            networkx.draw_networkx_nodes(pg, pos, node_color=values, node_size=sizes)
+            polca = [(colorr[node], colorg[node], colorb[node], colord[node]) for node in pg.nodes()]
         if labels:
             networkx.draw_networkx_labels(pg, pos, font_size=5, font_family='sans-serif')
         frame1 = pylab.gca()
@@ -774,7 +811,43 @@ class UnrootedGraph(object):
             pylab.show()
         else:
             fig.savefig(save)
-        return values
+        return polca
+
+    def count_gene(self, genin, cond, con=True):
+        """
+        Returns a dictionary that assigns to each node id the fraction of cells in the node for which column 'genin'
+        is equal to 'cond'. When optional argument 'con' is False, it uses all nodes, not only the ones in the first
+        connected component of the topological representation (used internally).
+        """
+        genecolor = {}
+        lista = []
+        for i in self.dic.keys():
+            if con:
+                if str(i) in self.pl:
+                    genecolor[str(i)] = 0.0
+                    lista.append(i)
+            else:
+                genecolor[str(i)] = 0.0
+                lista.append(i)
+        if genin is None:
+            for i in sorted(lista):
+                genecolor[str(i)] = 0.0
+        else:
+            if genin == 'lib':
+                geys = self.libs
+            else:
+                geys = self.dicgenes[genin]
+            for i in sorted(lista):
+                pol = 0.0
+                for j in self.dic[i]:
+                    if geys[j] == cond:
+                        pol += 1.0
+                genecolor[str(i)] = pol/float(len(self.dic[i]))
+        tol = sum(genecolor.values())
+        if tol > 0.0:
+            for ll in genecolor.keys():
+                genecolor[ll] = genecolor[ll]/tol
+        return genecolor, tol
 
     def show_statistics(self):
         """
@@ -1102,39 +1175,6 @@ class RootedGraph(UnrootedGraph):
         else:
             return [None, None]
 
-    def count_gene(self, genin, cond, con=True):
-        """
-        Returns a dictionary that assigns to each node id the fraction of cells in the node for which column 'genin'
-        is equal to 'cond'. When optional argument 'con' is False, it uses all nodes, not only the ones in the first
-        connected component of the topological representation (used internally).
-        """
-        genecolor = {}
-        lista = []
-        for i in self.dic.keys():
-            if con:
-                if str(i) in self.pl:
-                    genecolor[str(i)] = 0.0
-                    lista.append(i)
-            else:
-                genecolor[str(i)] = 0.0
-                lista.append(i)
-        if genin is None:
-            for i in sorted(lista):
-                genecolor[str(i)] = 0.0
-        else:
-            geys = self.dicgenes[genin]
-            for i in sorted(lista):
-                pol = 0.0
-                for j in self.dic[i]:
-                    if geys[j] == cond:
-                        pol += 1.0
-                genecolor[str(i)] = pol/float(len(self.dic[i]))
-        tol = sum(genecolor.values())
-        if tol > 0.0:
-            for ll in genecolor.keys():
-                genecolor[ll] = genecolor[ll]/tol
-        return genecolor, tol
-
     def get_gene(self, genin, ignore_log=False, con=True):
         """
         Returns a dictionary that asigns to each node id the average value of the column 'genin' in the raw table.
@@ -1213,13 +1253,16 @@ class RootedGraph(UnrootedGraph):
             y2.append(polter[m][2])
         xnew = numpy.linspace(min(x), max(x), 300)
         ynew = scipy.interpolate.spline(x, y, xnew)
-        fig = pylab.figure(figsize=(12,3))
+        fig = pylab.figure(figsize=(12, 3))
         pylab.fill_between(xnew, 0, ynew, alpha=0.5)
         pylab.ylim(0.0, max(ynew)*1.2)
         pylab.xlabel(self.rootlane)
         pylab.ylabel('<log2 (1+x)>')
         if len(axis) == 2:
             pylab.xlim(axis)
+        elif len(axis) == 4:
+            pylab.xlim(axis[0], axis[1])
+            pylab.ylim(axis[2], axis[3])
         else:
             pylab.xlim(min(xnew), max(xnew))
         if save == '':
