@@ -207,7 +207,7 @@
     \sloppy
 
     % Document level variables
-    \title{SCTDA Tutorial}
+    \title{scTDA Tutorial}
     \date{July 16, 2015}
     \release{}
     \author{Pablo G. C\'amara}
@@ -236,11 +236,11 @@
 
 
         
-SCTDA is an object oriented python library for topological data analysis of
+scTDA is an object oriented python library for topological data analysis of
 high-throughput single-cell RNA-seq data. It includes tools
 for the preprocessing, analysis and exploration of single-cell RNA-seq data,
 based on condensed topological representations produced by software such
-as \href{http://danifold.net/mapper/}{Mapper} or \href{http://www.ayasdi.com/}{Ayasdi}. This tutorial illustrates the basic SCTDA workflow using the motor neuron dataset of \cite{ref1} as case study. It is based on an IPython notebook.
+as \href{http://danifold.net/mapper/}{Mapper} or \href{http://www.ayasdi.com/}{Ayasdi}. This tutorial illustrates the basic scTDA workflow using the motor neuron dataset of \cite{ref1} as case study. It is based on an IPython notebook.
 
     % Make sure that atleast 4 lines are below the HR
     \needspace{4\baselineskip}
@@ -264,7 +264,7 @@ as \href{http://danifold.net/mapper/}{Mapper} or \href{http://www.ayasdi.com/}{A
 
 \subsection{Pre-processing}
 
-For convenience, SCTDA includes a class for preparing and filtering single-cell expression data,
+For convenience, scTDA includes a class for preparing and filtering single-cell expression data,
 based on RNA spike-in read counts. It takes as input one or more files with read
 counts in the format of \href{http://www-huber.embl.de/users/anders/HTSeq/doc/overview.html}{HTSeq-count}. Files can be all from a same time
 point or from multiple time points of a continuous biological process. In this tutorial we consider the
@@ -275,7 +275,7 @@ contains whole-transcriptome read counts of 40 individual cells. ERCC spike in's
 Life Technlogies were used in all samples.
 
 The class \texttt{SCTDA.Preprocess} allows to read, filter and organize the
-data, putting it in the appropriate form for SCTDA. Instances are
+data, putting it in the appropriate form for scTDA. Instances are
 initialized by providing a list of files with the corresponding
 timepoints and library id's, as well as the number of cells per file and
 the common identifier for RNA spike-in read counts:
@@ -339,7 +339,7 @@ ratio of spike-in reads and uniquely mapped reads, presumably due to
 large amounts of degraded RNA. Finally, some cells have very low ratio
 of spike-in reads and uniquely mapped reads, being large outliers. From
 the second plot we observe a large amount of transcripts near the
-detection limit, presumably due to noise.  When normalizing read counts to transcripts per million (TPM), SCTDA
+detection limit, presumably due to noise.  When normalizing read counts to transcripts per million (TPM), scTDA
 assumes that read counts have been obtained by \href{http://www.ncbi.nlm.nih.gov/pubmed/22939981}{CEL-seq} or any other
 single-cell RNA-seq method independent of gene lengths. 
 We can filter out all those
@@ -412,11 +412,11 @@ id and the remaining columns contain $\textrm{log}_2(1+\textrm{TPM})$ expression
 each gene, after filtering out reads according to \texttt{filterZlow} and
 \texttt{filterZhigh} parameters. This table can be used by dedicated software,
 such as \href{http://danifold.net/mapper/}{Mapper} or \href{http://www.ayasdi.com/}{Ayasdi}, to build a topological representation, that
-can be then analysed using SCTDA.
+can be then analysed using scTDA.
 
 \subsection{Parsing the topological graph}
 
-Apart from the above tab separated table, SCTDA makes use of a
+Apart from the above tab separated table, scTDA makes use of a
 topological condensed representation of the table. This can be produced
 using software such as \href{http://danifold.net/mapper/}{Mapper} or \href{http://www.ayasdi.com/}{Ayasdi}. The graph should be in GEXF
 format, and should be accompanied by two JSON files with the same name
@@ -425,7 +425,7 @@ respectively the rows of the table that are associated to each node of
 the graph and, optionally, groups of nodes to be considered for
 subsequent analysis.
 
-SCTDA provides a method to generate these files from an existing Ayasdi
+scTDA provides a method to generate these files from an existing Ayasdi
 Core session:
 
     % Make sure that atleast 4 lines are below the HR
@@ -450,7 +450,7 @@ Core session:
 This will produce the files \texttt{analysis1.gexf}, \texttt{analysis1.json} and
 \texttt{analysis1.groups.json}. \texttt{``1436106543459''} and \texttt{``-2007646151750978094''}
 are the identifiers of the Ayasdi Core session that we are importing
-into SCTDA. They can be obtained from the Ayasdi Core session as
+into scTDA. They can be obtained from the Ayasdi Core session as
 indicated in the following screenshot:
 \begin{center}
 \includegraphics[width = 120mm]{figs/f3.jpg}    
@@ -458,7 +458,7 @@ indicated in the following screenshot:
 
 \section{Analysis}
 
-SCTDA provides two major classes for the analysis of single cell RNA-seq
+scTDA provides two major classes for the analysis of single cell RNA-seq
 expression data. These are \texttt{SCTDA.UnrootedGraph} and \texttt{SCTDA.RootedGraph},
 respectively for non-longitudinal and longitudinal single cell RNA-seq
 data. \texttt{SCTDA.RootedGraph} is an inherited class from \texttt{SCTDA.UnrootedGraph},
@@ -682,7 +682,7 @@ cells of a given time point,
 \includegraphics[width = 110mm]{figs/f13.jpg}    
 \end{center}
 
-SCTDA determines a root node in the topological representation by
+scTDA determines a root node in the topological representation by
 maximizing the correlation between sampling time points and the graph
 distance function. The root node corresponds to the less differentiated
 state. We can color according to the distance to the root node using the
@@ -1442,7 +1442,7 @@ Adjacency takes high values when the expression of genes $g$ and $h$ are
 adjacent to each other in the topological representation. Note that when
 $g=h$, adjacency becomes connectivity.
 
-The adjacency matrix of a list of genes can be computed in SCTDA using
+The adjacency matrix of a list of genes can be computed in scTDA using
 the method,
 
     % Make sure that atleast 4 lines are below the HR
@@ -1487,14 +1487,14 @@ the method,
             
         
     
-SCTDA makes use of adjacency and Jensen-Shannon distance to look for
+scTDA makes use of adjacency and Jensen-Shannon distance to look for
 potential cell sub-populations,
 
 \begin{equation*}
 J(g,h) = \left[\frac12\sum_i\left(p_i(g)\textrm{log }p_i(g)+p_i(h)\textrm{log }p_i(h)-(p_i(g)+p_i(h))\textrm{log }\frac{p_i(g)+p_i(h)}{2}\right)\right]^{\frac12}
 \end{equation*}
 
-Jensen-Shannon distance is implemented in SCTDA through the following method,
+Jensen-Shannon distance is implemented in scTDA through the following method,
 
     % Make sure that atleast 4 lines are below the HR
     \needspace{4\baselineskip}
@@ -1713,7 +1713,7 @@ sub-populations,
 
     % End of document
     \begin{thebibliography}{99}
-    \bibitem{ref1} Rizvi, A. H.${}^*$, Camara, P. G.${}^*$, Kandror, E. K., Roberts, T. J., Maniatis, T. and Rabadan, R., \emph{Applied Topology Informs Cellular Fate at a Single-Cell Level}. In preparation.
+    \bibitem{ref1} Rizvi, A. H.${}^*$, Camara, P. G.${}^*$, Kandror, E. K., Roberts, T. J., Scheiren, I., Maniatis, T. and Rabadan, R., \emph{Applied Topology Informs Developmental Progression at a Single-Cell Level}. (2016). In preparation.
     \end{thebibliography}
     \end{document}
 
