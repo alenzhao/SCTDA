@@ -329,7 +329,7 @@ class UnrootedGraph(object):
     """
     Main class for topological analysis of non-longitudinal single cell RNA-seq expression data.
     """
-    def __init__(self, name, table, shift=None, log2=True, posgl=False):
+    def __init__(self, name, table, shift=None, log2=True, posgl=False, connected=True, csv=False, groups=True):
         """
         Initializes the class by providing the the common name ('name') of .gexf and .json files produced by
         e.g. ParseAyasdiGraph() and the name of the file containing the filtered raw data ('table'), as produced by
@@ -338,14 +338,20 @@ class UnrootedGraph(object):
         'log2' is False, it is assumed that the filtered raw data is in units of TPM instead of log_2(1+TPM).
         When optional argument 'posgl' is False, a files name.posg and name.posgl are generated with the positions
         of the graph nodes for visualization. When 'posgl' is True, instead of generating new positions, the
-        positions stored in files name.posg and name.posgl are used for visualization of the topological graph.
+        positions stored in files name.posg and name.posgl are used for visualization of the topological graph. If
+        connected is False, all connected components of the network are displayed. When
+        'csv' is True, the input table is in CSV format. When 'groups' is Flase, the class is initialized with an 
+        empty group dictionary.
         """
         self.name = name
         self.g = networkx.read_gexf(name + '.gexf')
-        self.gl = list(networkx.connected_component_subgraphs(self.g))[0]
+        listii = [len(aa.nodes()) for aa in list(networkx.connected_component_subgraphs(self.g))]
+        indexii = listii.index(numpy.max(listii))
+        self.gl = list(networkx.connected_component_subgraphs(self.g))[indexii]
         self.pl = self.gl.nodes()
         self.adj = numpy.array(networkx.to_numpy_matrix(self.gl, nodelist=self.pl))
         self.log2 = log2
+        self.cellID = []
         self.libs = []
         if not posgl:
             try:
@@ -365,13 +371,24 @@ class UnrootedGraph(object):
                 self.posg = pickle.load(handler)
         with open(name + '.json', 'r') as handler:
             self.dic = json.load(handler)
-        with open(name + '.groups.json', 'r') as handler:
-            self.dicgroups = json.load(handler)
+        if groups:
+            with open(name + '.groups.json', 'r') as handler:
+                self.dicgroups = json.load(handler)
+        else:
+            self.dicgroups = {}
+        if csv:
+            cx = ','
+        else:
+            cx = '\t'
         with open(table, 'r') as f:
             self.dicgenes = {}
             self.geneindex = {}
             for n, line in enumerate(f):
-                sp = numpy.array(line[:-1].split('\t'))
+                sp2 = numpy.array(line[:-1].split(cx))
+                if csv:
+                    sp = [x.split('|')[0] for x in sp2]
+                else:
+                    sp = sp2
                 if shift is None:
                     if n == 0:
                         poi = sp
@@ -387,12 +404,15 @@ class UnrootedGraph(object):
                             elif n2 == coyt:
                                 self.libs.append(mji)
                                 poi.append(0.0)
+                            elif n2 == 0:
+                                self.cellID.append(mji)
+                                poi.append(0.0)
                             else:
                                 poi.append(0.0)
                 elif type(shift) == int:
                     poi = sp[shift:]
                 else:
-                    poi = sp[shift]
+                    poi = list(numpy.array(sp)[shift])
                 if n == 0:
                     for u, q in enumerate(poi):
                         self.dicgenes[q] = []
@@ -404,6 +424,7 @@ class UnrootedGraph(object):
         for i in self.pl:
             self.samples += self.dic[i]
         self.samples = numpy.array(list(set(self.samples)))
+        self.cellID = numpy.array(self.cellID)
 
     def get_gene(self, genin, ignore_log=False, con=True):
         """
@@ -415,7 +436,7 @@ class UnrootedGraph(object):
         nodes, not only the ones in the first connected component of the topological representation (used internally).
         """
         if genin is not None and 'lib_' in genin:
-            return self.count_gene('lib', genin.split('_')[1])
+            return self.count_gene('lib', genin.split('_')[1], con=con)
         else:
             if type(genin) != list:
                 genin = [genin]
@@ -664,7 +685,7 @@ class UnrootedGraph(object):
         return numpy.array(mat)
 
     def draw(self, color, connected=True, labels=False, ccmap='jet', weight=8.0, save='', ignore_log=False,
-             table=False, axis=[]):
+             table=False, axis=[], a=0.4):
         """
         Displays topological representation of the data colored according to the expression of a gene, genes or
         list of genes, specified by argument 'color'. This can be a gene or a list of one, two or three genes or lists
@@ -676,7 +697,7 @@ class UnrootedGraph(object):
         no plot will be displayed on the screen. When 'ignore_log' is True, it treat expression values as being in
         natural scale, even if self.log2 is True (used internally). When argument 'table' is True, it displays in
         addition a table with some statistics of the gene or genes. Optional argument 'axis' allows to specify axis
-        limits in the form [xmin, xmax, ymin, ymax].
+        limits in the form [xmin, xmax, ymin, ymax]. Parameter alpha specifies the alpha value of edges.
         """
         if connected:
             pg = self.gl
@@ -685,22 +706,22 @@ class UnrootedGraph(object):
             pg = self.g
             pos = self.posg
         fig = pylab.figure()
-        networkx.draw_networkx_edges(pg, pos, width=1, alpha=0.4)
+        networkx.draw_networkx_edges(pg, pos, width=1, alpha=a)
         sizes = numpy.array([len(self.dic[node]) for node in pg.nodes()])*weight
         values = []
         if type(color) == str:
             color = [color]
         if type(color) == list and len(color) == 1:
-            coloru, tol = self.get_gene(color[0], ignore_log=ignore_log)
+            coloru, tol = self.get_gene(color[0], ignore_log=ignore_log, con=connected)
             values = [coloru[node] for node in pg.nodes()]
             networkx.draw_networkx_nodes(pg, pos, node_color=values, node_size=sizes, cmap=pylab.get_cmap(ccmap))
             polca = values
         elif type(color) == list and len(color) == 2:
-            colorr, tolr = self.get_gene(color[0], ignore_log=ignore_log)
+            colorr, tolr = self.get_gene(color[0], ignore_log=ignore_log, con=connected)
             rmax = float(max(colorr.values()))
             if rmax == 0.0:
                 rmax = 1.0
-            colorb, tolb = self.get_gene(color[1], ignore_log=ignore_log)
+            colorb, tolb = self.get_gene(color[1], ignore_log=ignore_log, con=connected)
             bmax = float(max(colorb.values()))
             if bmax == 0.0:
                 bmax = 1.0
@@ -709,15 +730,15 @@ class UnrootedGraph(object):
             networkx.draw_networkx_nodes(pg, pos, node_color=values, node_size=sizes)
             polca = [(colorr[node], colorb[node]) for node in pg.nodes()]
         elif type(color) == list and len(color) == 3:
-            colorr, tolr = self.get_gene(color[0], ignore_log=ignore_log)
+            colorr, tolr = self.get_gene(color[0], ignore_log=ignore_log, con=connected)
             rmax = float(max(colorr.values()))
             if rmax == 0.0:
                 rmax = 1.0
-            colorg, tolg = self.get_gene(color[1], ignore_log=ignore_log)
+            colorg, tolg = self.get_gene(color[1], ignore_log=ignore_log, con=connected)
             gmax = float(max(colorg.values()))
             if gmax == 0.0:
                 gmax = 1.0
-            colorb, tolb = self.get_gene(color[2], ignore_log=ignore_log)
+            colorb, tolb = self.get_gene(color[2], ignore_log=ignore_log, con=connected)
             bmax = float(max(colorb.values()))
             if bmax == 0.0:
                 bmax = 1.0
@@ -727,19 +748,19 @@ class UnrootedGraph(object):
             networkx.draw_networkx_nodes(pg, pos, node_color=values, node_size=sizes)
             polca = [(colorr[node], colorg[node], colorb[node]) for node in pg.nodes()]
         elif type(color) == list and len(color) == 4:
-            colorr, tolr = self.get_gene(color[0], ignore_log=ignore_log)
+            colorr, tolr = self.get_gene(color[0], ignore_log=ignore_log, con=connected)
             rmax = float(max(colorr.values()))
             if rmax == 0.0:
                 rmax = 1.0
-            colorg, tolg = self.get_gene(color[1], ignore_log=ignore_log)
+            colorg, tolg = self.get_gene(color[1], ignore_log=ignore_log, con=connected)
             gmax = float(max(colorg.values()))
             if gmax == 0.0:
                 gmax = 1.0
-            colorb, tolb = self.get_gene(color[2], ignore_log=ignore_log)
+            colorb, tolb = self.get_gene(color[2], ignore_log=ignore_log, con=connected)
             bmax = float(max(colorb.values()))
             if bmax == 0.0:
                 bmax = 1.0
-            colord, told = self.get_gene(color[3], ignore_log=ignore_log)
+            colord, told = self.get_gene(color[3], ignore_log=ignore_log, con=connected)
             dmax = float(max(colord.values()))
             if dmax == 0.0:
                 dmax = 1.0
